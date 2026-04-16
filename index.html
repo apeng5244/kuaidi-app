@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>快递助手专业版</title>
+    <title>快递助手 - 智能计费版</title>
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         /* 基础 iOS 样式 */
@@ -17,18 +17,6 @@
         h2, h3 { margin-top: 0; font-weight: 600; color: #000000; text-align: center;}
         h2 { font-size: 22px; margin-bottom: 20px;}
         h3 { font-size: 18px; margin-bottom: 16px; }
-
-        /* 运费选择器 (iOS Segmented Control 风格) */
-        .segmented-control {
-            display: flex; background: #E5E5EA; padding: 2px; border-radius: 10px; margin-bottom: 16px;
-        }
-        .segmented-control label {
-            flex: 1; text-align: center; padding: 8px 0; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; transition: 0.2s;
-        }
-        .segmented-control input { display: none; }
-        .segmented-control input:checked + span {
-            background: #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; display: block; margin: 0 2px;
-        }
 
         /* 输入框与选择器 */
         input[type="text"], input[type="password"], select { 
@@ -48,7 +36,7 @@
 
         /* 状态标签 (Badges) */
         .badge {
-            display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+            display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: center; min-width: 32px;
         }
         .badge-paid { background: #E8F5E9; color: #34C759; }
         .badge-unpaid { background: #FFF3E0; color: #FF9500; } /* 橙色提醒 */
@@ -81,19 +69,6 @@
 <div id="appPanel">
     <div class="card">
         <h2>📦 快速扫码</h2>
-        <div id="scanModeSelector">
-            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 8px;">入库前请先选择运费状态：</p>
-            <div class="segmented-control">
-                <label>
-                    <input type="radio" name="payStatus" value="PAID" checked>
-                    <span>运费已付</span>
-                </label>
-                <label>
-                    <input type="radio" name="payStatus" value="UNPAID">
-                    <span>待收运费</span>
-                </label>
-            </div>
-        </div>
         <video id="video"></video>
         <button class="btn-in" onclick="startScan('IN')">📥 入库扫码</button>
         <button class="btn-out" onclick="startScan('OUT')">📤 出库扫码</button>
@@ -132,7 +107,7 @@
                         <th>单号</th>
                         <th>状态</th>
                         <th>运费</th>
-                        <th>入库/出库时间</th>
+                        <th>操作时间</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -186,30 +161,51 @@
         const timestamp = now.getTime();
 
         if (mode === 'IN') {
-            if (index > -1) { alert("重复入库！"); return; }
-            // 获取当前选择的运费状态
-            const payStatus = document.querySelector('input[name="payStatus"]:checked').value;
+            if (index > -1) { 
+                alert("⚠️ 重复入库：该单号已经在库中！"); 
+                return; 
+            }
+            
+            // 扫码成功后，立刻弹窗让用户选择是否已收费
+            const isPaid = confirm("📦 入库运费确认：\n\n该件是否已经收取过快递费？\n\n👉 点击【确定】标记为：已付\n👉 点击【取消】标记为：待收（出库时将提醒）");
+            const payStatus = isPaid ? 'PAID' : 'UNPAID';
+
             records.unshift({
                 barcode: code,
                 status: '在库',
-                payment: payStatus, // PAID 或 UNPAID
+                payment: payStatus, 
                 inTime: timeStr,
                 inTimestamp: timestamp,
                 outTime: '-'
             });
-            alert(`✅ 入库成功 (${payStatus === 'PAID' ? '运费已付' : '待收运费'})`);
+            
+            if (isPaid) {
+                alert("✅ 入库成功！运费状态：已付");
+            } else {
+                alert("✅ 入库成功！运费状态：待收");
+            }
+
         } else {
+            // 出库逻辑
             if (index > -1 && records[index].status === '在库') {
-                // 出库时的运费检查逻辑
+                
+                // 检查运费状态
                 if (records[index].payment === 'UNPAID') {
-                    // 弹出强烈提醒
-                    alert("🚨🚨🚨 运费提醒 🚨🚨🚨\n\n该件入库时标记为【待收运费】！\n请务必先收费再交给客户！");
+                    // 如果未付，强烈提醒收费，并自动更改状态为已付
+                    alert("🚨🚨🚨 收费提醒 🚨🚨🚨\n\n此件入库时【未付运费】！\n请务必向客户收取运费！\n\n(点击确定后，系统将自动把该件标记为已付)");
+                    records[index].payment = 'PAID'; // 出库后强制更新为已付
+                } else {
+                    alert("✅ 出库成功 (此件运费已付)");
                 }
+
+                // 更新出库状态和时间
                 records[index].status = '已出库';
                 records[index].outTime = timeStr;
                 records[index].outTimestamp = timestamp;
-                alert("✅ 出库成功");
-            } else { alert("未找到在库记录"); }
+                
+            } else { 
+                alert("❌ 操作失败：未找到该件的在库记录！"); 
+            }
         }
         saveAndRefresh();
     }
@@ -247,11 +243,14 @@
                 '<span class="badge badge-paid">已付</span>' : 
                 '<span class="badge badge-unpaid">待收</span>';
             
+            // 优化时间显示：在库显示入库时间，已出库显示出库时间
+            const displayTime = r.status === '在库' ? r.inTime : r.outTime;
+
             tbody.innerHTML += `<tr>
                 <td style="font-family:monospace;">${r.barcode.slice(-6)}...</td>
                 <td style="font-weight:600; color:${r.status==='在库'?'#34C759':'#8E8E93'}">${r.status}</td>
                 <td>${payBadge}</td>
-                <td style="font-size:11px; color:#666;">${r.status==='在库'?r.inTime:r.outTime}</td>
+                <td style="font-size:11px; color:#666;">${displayTime}</td>
             </tr>`;
         });
     }
@@ -265,9 +264,10 @@
     }
 
     function handleClearData() {
-        if (confirm("确定清理历史记录？建议先备份。")) {
-            records = records.filter(r => r.status === '在库'); // 仅保留在库记录
+        if (confirm("⚠️ 确定清理已出库的历史记录吗？清理后仅保留当前在库的数据。建议先导出备份。")) {
+            records = records.filter(r => r.status === '在库'); // 仅保留在库记录，清理所有历史
             saveAndRefresh();
+            alert("🧹 清理完成！");
         }
     }
 </script>
