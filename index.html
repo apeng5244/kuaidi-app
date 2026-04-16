@@ -39,7 +39,7 @@
             display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: center; min-width: 32px;
         }
         .badge-paid { background: #E8F5E9; color: #34C759; }
-        .badge-unpaid { background: #FFF3E0; color: #FF9500; }
+        .badge-unpaid { background: #FFF3E0; color: #FF9500; } 
 
         /* 视频圆角 */
         #video { width: 100%; height: 250px; background: #000; border-radius: 12px; display: none; object-fit: cover; margin-bottom: 16px; }
@@ -76,7 +76,9 @@
         .modal-row:last-child { border-bottom: none; }
         .modal-label { color: #8E8E93; white-space: nowrap; }
         .modal-value { color: #1C1C1E; font-weight: 500; text-align: right; word-break: break-all; padding-left: 10px; }
-        .btn-close { background: #E5E5EA; color: #007AFF; margin-top: 20px; }
+        
+        /* 弹窗底部操作按钮 */
+        .modal-actions { margin-top: 20px; }
 
         #appPanel { display: none; }
     </style>
@@ -141,7 +143,7 @@
     <div class="card">
         <h3>数据管理</h3>
         <button class="btn-secondary" onclick="exportData()">导出数据备份 (JSON)</button>
-        <button class="btn-clear" onclick="handleClearData()">清理历史缓存</button>
+        <button class="btn-clear" onclick="handleClearData()">一键清理已出库缓存</button>
     </div>
 </div>
 
@@ -149,7 +151,10 @@
     <div class="modal-card">
         <h3>订单详情</h3>
         <div id="modalContent"></div>
-        <button class="btn-close" onclick="closeModal()">关闭</button>
+        <div class="modal-actions">
+            <button class="btn-clear" id="btnDeleteRecord">删除此记录</button>
+            <button class="btn-secondary" onclick="closeModal()">关闭</button>
+        </div>
     </div>
 </div>
 
@@ -264,7 +269,6 @@
                 '<span class="badge badge-unpaid">待收</span>';
             const displayTime = r.status === '在库' ? r.inTime : r.outTime;
 
-            // 单号列变为蓝色可点击，带向右小箭头
             tbody.innerHTML += `<tr>
                 <td onclick="showDetails('${r.barcode}')" style="color:#007AFF; cursor:pointer; font-family:monospace;">
                     ${r.barcode.slice(-6)} <span style="color:#C7C7CC; float:right;">›</span>
@@ -276,7 +280,7 @@
         });
     }
 
-    // 新增：显示详情逻辑
+    // 显示详情与绑定删除事件
     function showDetails(barcode) {
         const r = records.find(x => x.barcode === barcode);
         if (!r) return;
@@ -307,12 +311,28 @@
             </div>
         `;
         document.getElementById('modalContent').innerHTML = html;
+        
+        // 为当前的订单绑定删除事件
+        document.getElementById('btnDeleteRecord').onclick = function() {
+            deleteRecord(barcode);
+        };
+
         document.getElementById('detailModal').style.display = 'flex';
     }
 
-    // 新增：关闭详情
+    // 关闭详情
     function closeModal() {
         document.getElementById('detailModal').style.display = 'none';
+    }
+
+    // 新增：单条记录删除功能
+    function deleteRecord(barcode) {
+        if (confirm("⚠️ 危险操作：确定要永久删除这条记录吗？\n\n删除后将无法恢复，且会影响今日概览的统计数据！")) {
+            records = records.filter(r => r.barcode !== barcode);
+            saveAndRefresh();
+            closeModal();
+            alert("🗑️ 记录已删除");
+        }
     }
 
     function exportData() {
