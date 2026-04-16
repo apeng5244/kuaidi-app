@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>佳美超市快递助手</title>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 15px; background: #f4f4f9; color: #333; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h2, h3 { margin-top: 0; color: #444; text-align: center; }
+        
+        /* 按钮与输入框样式 */
+        input[type="text"], input[type="password"] { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.2s; font-weight: bold; }
+        .btn-in { background: #4CAF50; color: white; }
+        .btn-out { background: #2196F3; color: white; }
+        .btn-clear { background: #ff4d4d; color: white; margin-top: 10px; }
+        .btn-secondary { background: #777; color: white; }
+        .btn-login { background: #333; color: white; }
+
+        /* 视频与表格样式 */
+        #video { width: 100%; height: 250px; background: black; border-radius: 10px; display: none; object-fit: cover; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+        .select-range { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px;}
+        
+        /* 面板显示控制 */
+        #appPanel { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="loginPanel" class="card" style="margin-top: 30vh;">
+    <h2>🔒 私人空间</h2>
+    <p style="text-align: center; font-size: 14px; color: #666;">请输入访问密码</p>
+    <input type="password" id="appPassword" placeholder="输入密码">
+    <button class="btn-login" onclick="verifyPassword()">进 入</button>
+</div>
+
+<div id="appPanel">
+    <div class="card">
+        <h2>📦 快递扫码助手</h2>
+        <video id="video"></video>
+        <button class="btn-in" onclick="startScan('IN')">📥 入库扫码</button>
+        <button class="btn-out" onclick="startScan('OUT')">📤 出库扫码</button>
+    </div>
+
+    <div class="card">
+        <h3>🔍 记录查询</h3>
+        <input type="text" id="search" placeholder="输入单号查询..." oninput="renderTable()">
+        <div style="overflow-x: auto;">
+            <table id="recordTable">
+                <thead>
+                    <tr>
+                        <th>单号</th>
+                        <th>状态</th>
+                        <th>入库时间</th>
+                        <th>出库时间</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🧹 数据管理</h3>
+        <p style="font-size: 12px; color: #666;">清理指定时间之前的入库记录：</p>
+        <select id="clearRange" class="select-range">
+            <option value="7">清理 1 周前的数据</option>
+            <option value="30">清理 1 个月前的数据</option>
+            <option value="365">清理 1 年前的数据</option>
+        </select>
+        <button class="btn-clear" onclick="handleClearData()">执行清理</button>
+        <button class="btn-secondary" onclick="exportData()">💾 导出备份 (JSON)</button>
+    </div>
+</div>
+
+<script>
+    // --- 密码验证逻辑 ---
+    const SECRET_PASSWORD = "524498195";
+
+    // 检查是否在当前会话中已经登录过
+    if (sessionStorage.getItem('isLoggedIn') === 'true') {
+        showApp();
+    }
+
+    function verifyPassword() {
+        const input = document.getElementById('appPassword').value;
+        if (input === SECRET_PASSWORD) {
+            sessionStorage.setItem('isLoggedIn', 'true'); // 记录登录状态（浏览器标签页关闭后失效）
+            showApp();
+        } else {
+            alert('❌ 密码错误，请重试！');
+            document.getElementById('appPassword').value = '';
+        }
+    }
+
+    function showApp() {
+        document.getElementById('loginPanel').style.display = 'none';
+        document.getElementById('appPanel').style.display = 'block';
+        renderTable(); // 显示应用后渲染表格
+    }
+
+
+    // --- 核心业务逻辑 ---
+    let currentMode = '';
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    let records = JSON.parse(localStorage.getItem('express_db') || '[]');
+
+    function startScan(mode) {
+        currentMode = mode;
+        const video = document.getElementById('video');
+        video.style.display = 'block';
+
+        codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+            if (result) {
+                video.style.display = 'none';
+                codeReader.reset();
+                processBarcode(result.text);
+            }
+        });
+    }
+
+    function processBarcode(code) {
+        const index = records.findIndex(r => r.barcode === code);
+        const now = new Date();
+        const timeStr = now.toLocaleString();
+        const timestamp = now.getTime();
+
+        if (currentMode === 'IN') {
+            if (index > -1) {
+                alert("⚠️ 报错：该单号已在库中！");
+            } else {
+                records.unshift({ 
+                    barcode: code, 
+                    status: '在库', 
+                    inTime: timeStr, 
+                    inTimestamp: timestamp,
+                    outTime: '-' 
+                });
+                alert("✅ 入库成功：" + code);
+            }
+        } else {
+            if (index > -1 && records[index].status === '在库') {
+                records[index].status = '已出库';
+                records[index].outTime = timeStr;
+                alert("✅ 出库成功：" + code);
+            } else {
+                alert("❌ 报错：未找到入库记录或已出库！");
+            }
+        }
+        saveAndRefresh();
+    }
+
+    function handleClearData() {
+        const days = parseInt(document.getElementById('clearRange').value);
+        const now = new Date().getTime();
+        const msToClear = days * 24 * 60 * 60 * 1000;
+        const threshold = now - msToClear;
+        const countBefore = records.length;
+        
+        if (confirm(`⚠️ 确定要清理 ${days} 天之前的记录吗？此操作不可撤销！建议先导出备份。`)) {
+            records = records.filter(r => {
+                if (!r.inTimestamp) return true; 
+                return r.inTimestamp > threshold;
+            });
+            const deletedCount = countBefore - records.length;
+            alert(`🧹 清理完成！共删除了 ${deletedCount} 条历史记录。`);
+            saveAndRefresh();
+        }
+    }
+
+    function saveAndRefresh() {
+        localStorage.setItem('express_db', JSON.stringify(records));
+        renderTable();
+    }
+
+    function renderTable() {
+        const searchVal = document.getElementById('search').value;
+        const tbody = document.querySelector('#recordTable tbody');
+        tbody.innerHTML = '';
+
+        records.filter(r => r.barcode.includes(searchVal)).forEach(r => {
+            const row = `<tr>
+                <td>${r.barcode}</td>
+                <td style="color:${r.status==='在库'?'#4CAF50':'#ff4d4d'}; font-weight:bold;">${r.status}</td>
+                <td>${r.inTime}</td>
+                <td>${r.outTime}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `快递数据备份_${new Date().toLocaleDateString()}.json`);
+        downloadAnchorNode.click();
+    }
+</script>
+</body>
+</html>
