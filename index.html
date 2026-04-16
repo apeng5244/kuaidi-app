@@ -3,27 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>快递助手 - 语音增强版</title>
+    <title>快递助手 - 智能计费版</title>
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         /* 基础 iOS 样式 */
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; 
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; 
             margin: 0; padding: 16px; background: #F2F2F7; color: #1C1C1E; -webkit-font-smoothing: antialiased;
         }
-        .card { 
-            background: #FFFFFF; padding: 16px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 16px; 
+        .card { 
+            background: #FFFFFF; padding: 16px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 16px; 
         }
         h2, h3 { margin-top: 0; font-weight: 600; color: #000000; text-align: center;}
         h2 { font-size: 22px; margin-bottom: 20px;}
         h3 { font-size: 18px; margin-bottom: 16px; }
 
-        input[type="text"], input[type="password"], select { 
+        /* 输入框与选择器 */
+        input[type="text"], input[type="password"], select { 
             width: 100%; padding: 14px; margin-bottom: 12px; background-color: #F2F2F7; border: none; border-radius: 12px; font-size: 16px; box-sizing: border-box; outline: none;
         }
 
-        button { 
-            width: 100%; padding: 14px; margin: 6px 0; border: none; border-radius: 14px; cursor: pointer; font-size: 17px; font-weight: 600; transition: opacity 0.2s; 
+        /* 按钮 */
+        button { 
+            width: 100%; padding: 14px; margin: 6px 0; border: none; border-radius: 14px; cursor: pointer; font-size: 17px; font-weight: 600; transition: opacity 0.2s; 
         }
         button:active { opacity: 0.7; }
         .btn-in { background: #34C759; color: white; }
@@ -32,32 +34,49 @@
         .btn-secondary { background: #E5E5EA; color: #007AFF; }
         .btn-login { background: #007AFF; color: white; }
 
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-align: center; min-width: 32px; }
+        /* 状态标签 (Badges) */
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: center; min-width: 32px;
+        }
         .badge-paid { background: #E8F5E9; color: #34C759; }
         .badge-unpaid { background: #FFF3E0; color: #FF9500; }
 
+        /* 视频圆角 */
         #video { width: 100%; height: 250px; background: #000; border-radius: 12px; display: none; object-fit: cover; margin-bottom: 16px; }
-        
+        
+        /* 表格样式 */
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { padding: 12px 4px; text-align: left; border-bottom: 0.5px solid #E5E5EA; }
         th { color: #8E8E93; font-weight: 500; font-size: 12px; }
-        
+        
         .stat-container { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 16px;}
         .stat-box { padding: 12px; border-radius: 12px; flex: 1; text-align: center; }
         .stat-box-green { background: #E8F5E9; }
         .stat-box-blue { background: #E3F2FD; }
         .stat-number { font-size: 20px; font-weight: 700; }
 
+        /* 详情弹窗 (iOS 风格毛玻璃) */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.4); display: none;
             justify-content: center; align-items: center; z-index: 1000;
-            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
-        .modal-card { background: #FFFFFF; width: 85%; max-width: 340px; border-radius: 14px; padding: 24px; box-sizing: border-box; }
-        .modal-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; border-bottom: 1px solid #F2F2F7; padding-bottom: 10px; }
-        .modal-label { color: #8E8E93; }
+        .modal-card {
+            background: #FFFFFF; width: 85%; max-width: 340px;
+            border-radius: 14px; padding: 24px; box-sizing: border-box;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+        }
+        .modal-card h3 { margin-bottom: 20px; text-align: center; font-size: 18px; }
+        .modal-row {
+            display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px;
+            border-bottom: 1px solid #F2F2F7; padding-bottom: 10px;
+        }
+        .modal-row:last-child { border-bottom: none; }
+        .modal-label { color: #8E8E93; white-space: nowrap; }
         .modal-value { color: #1C1C1E; font-weight: 500; text-align: right; word-break: break-all; padding-left: 10px; }
+        .btn-close { background: #E5E5EA; color: #007AFF; margin-top: 20px; }
 
         #appPanel { display: none; }
     </style>
@@ -67,7 +86,7 @@
 <div id="loginPanel" class="card" style="margin-top: 25vh;">
     <h2>快递助手</h2>
     <input type="password" id="appPassword" placeholder="访问密码">
-    <button class="btn-login" onclick="verifyPassword()">解锁并开启语音</button>
+    <button class="btn-login" onclick="verifyPassword()">解锁进入</button>
 </div>
 
 <div id="appPanel">
@@ -108,7 +127,7 @@
             <table id="recordTable">
                 <thead>
                     <tr>
-                        <th>单号 (详情)</th>
+                        <th>单号 (点击查看)</th>
                         <th>状态</th>
                         <th>运费</th>
                         <th>时间</th>
@@ -121,16 +140,16 @@
 
     <div class="card">
         <h3>数据管理</h3>
-        <button class="btn-secondary" onclick="exportData()">导出备份 (JSON)</button>
+        <button class="btn-secondary" onclick="exportData()">导出数据备份 (JSON)</button>
         <button class="btn-clear" onclick="handleClearData()">清理历史缓存</button>
     </div>
 </div>
 
 <div id="detailModal" class="modal-overlay">
     <div class="modal-card">
-        <h3 style="text-align: center;">订单详情</h3>
+        <h3>订单详情</h3>
         <div id="modalContent"></div>
-        <button class="btn-secondary" style="margin-top: 20px; color: #007AFF;" onclick="closeModal()">关闭</button>
+        <button class="btn-close" onclick="closeModal()">关闭</button>
     </div>
 </div>
 
@@ -139,23 +158,11 @@
     let records = JSON.parse(localStorage.getItem('express_db') || '[]');
     const codeReader = new ZXing.BrowserMultiFormatReader();
 
-    // --- 语音播报核心函数 ---
-    function speak(text) {
-        if (!window.speechSynthesis) return;
-        const msg = new SpeechSynthesisUtterance();
-        msg.text = text;
-        msg.lang = 'zh-CN';
-        msg.rate = 1.1; // 语速稍微快一点，显得干脆
-        msg.pitch = 1;
-        window.speechSynthesis.speak(msg);
-    }
-
     // 登录逻辑
     if (sessionStorage.getItem('isLoggedIn') === 'true') showApp();
     function verifyPassword() {
         if (document.getElementById('appPassword').value === SECRET_PASSWORD) {
             sessionStorage.setItem('isLoggedIn', 'true');
-            speak("身份验证通过"); // 顺便测试语音
             showApp();
         } else { alert('密码错误'); }
     }
@@ -185,37 +192,39 @@
         const timestamp = now.getTime();
 
         if (mode === 'IN') {
-            if (index > -1) { 
-                speak("重复入库");
-                alert("⚠️ 该单号已经在库中！"); 
-                return; 
+            if (index > -1) { 
+                alert("⚠️ 重复入库：该单号已经在库中！"); 
+                return; 
             }
-            
-            const isPaid = confirm("📦 入库运费确认：\n\n该件是否已付运费？\n\n【确定】-> 已付\n【取消】-> 待收");
+            
+            const isPaid = confirm("📦 入库运费确认：\n\n该件是否已经收取过快递费？\n\n👉 点击【确定】标记为：已付\n👉 点击【取消】标记为：待收（出库时将提醒）");
             const payStatus = isPaid ? 'PAID' : 'UNPAID';
 
             records.unshift({
-                barcode: code, status: '在库', payment: payStatus, 
-                inTime: timeStr, inTimestamp: timestamp, outTime: '-'
+                barcode: code,
+                status: '在库',
+                payment: payStatus, 
+                inTime: timeStr,
+                inTimestamp: timestamp,
+                outTime: '-'
             });
-            
-            speak("快件已入库"); // 语音播报
+            
+            if (isPaid) alert("✅ 入库成功！运费状态：已付");
+            else alert("✅ 入库成功！运费状态：待收");
+
         } else {
             if (index > -1 && records[index].status === '在库') {
                 if (records[index].payment === 'UNPAID') {
-                    // 欠费警告语音
-                    speak("请注意，运费未付，请收钱");
-                    alert("🚨 收费提醒：此件入库时未付运费！");
-                    records[index].payment = 'PAID'; 
+                    alert("🚨🚨🚨 收费提醒 🚨🚨🚨\n\n此件入库时【未付运费】！\n请务必向客户收取运费！\n\n(点击确定后，系统将自动把该件标记为已付)");
+                    records[index].payment = 'PAID'; 
+                } else {
+                    alert("✅ 出库成功 (此件运费已付)");
                 }
                 records[index].status = '已出库';
                 records[index].outTime = timeStr;
                 records[index].outTimestamp = timestamp;
-                
-                speak("快件已出库"); // 语音播报
-            } else { 
-                speak("未找到记录");
-                alert("❌ 未找到在库记录！"); 
+            } else { 
+                alert("❌ 操作失败：未找到该件的在库记录！"); 
             }
         }
         saveAndRefresh();
@@ -244,36 +253,68 @@
         const filter = document.getElementById('dataFilter').value;
         const tbody = document.querySelector('#recordTable tbody');
         tbody.innerHTML = '';
+
         let display = records.filter(r => r.barcode.includes(search));
         if (filter === 'IN_STOCK') display = display.filter(r => r.status === '在库');
         if (filter === 'UNPAID_ONLY') display = display.filter(r => r.payment === 'UNPAID');
 
         display.forEach(r => {
-            const payBadge = r.payment === 'PAID' ? '<span class="badge badge-paid">已付</span>' : '<span class="badge badge-unpaid">待收</span>';
+            const payBadge = r.payment === 'PAID' ? 
+                '<span class="badge badge-paid">已付</span>' : 
+                '<span class="badge badge-unpaid">待收</span>';
+            const displayTime = r.status === '在库' ? r.inTime : r.outTime;
+
+            // 单号列变为蓝色可点击，带向右小箭头
             tbody.innerHTML += `<tr>
-                <td onclick="showDetails('${r.barcode}')" style="color:#007AFF; font-family:monospace;">${r.barcode.slice(-6)} ›</td>
+                <td onclick="showDetails('${r.barcode}')" style="color:#007AFF; cursor:pointer; font-family:monospace;">
+                    ${r.barcode.slice(-6)} <span style="color:#C7C7CC; float:right;">›</span>
+                </td>
                 <td style="font-weight:600; color:${r.status==='在库'?'#34C759':'#8E8E93'}">${r.status}</td>
                 <td>${payBadge}</td>
-                <td style="font-size:11px; color:#666;">${r.status==='在库'?r.inTime:r.outTime}</td>
+                <td style="font-size:11px; color:#666;">${displayTime}</td>
             </tr>`;
         });
     }
 
+    // 新增：显示详情逻辑
     function showDetails(barcode) {
         const r = records.find(x => x.barcode === barcode);
         if (!r) return;
-        const payText = r.payment === 'PAID' ? '<span style="color:#34C759;">已付</span>' : '<span style="color:#FF9500;">待收</span>';
-        document.getElementById('modalContent').innerHTML = `
-            <div class="modal-row"><span class="modal-label">单号</span><span class="modal-value">${r.barcode}</span></div>
-            <div class="modal-row"><span class="modal-label">状态</span><span class="modal-value">${r.status}</span></div>
-            <div class="modal-row"><span class="modal-label">运费</span><span class="modal-value">${payText}</span></div>
-            <div class="modal-row"><span class="modal-label">入库</span><span class="modal-value">${r.inTime}</span></div>
-            <div class="modal-row"><span class="modal-label">出库</span><span class="modal-value">${r.outTime}</span></div>
+
+        const payText = r.payment === 'PAID' ? '<span style="color:#34C759;">运费已付</span>' : '<span style="color:#FF9500;">待收运费</span>';
+        const statusText = r.status === '在库' ? '<span style="color:#34C759;">当前在库</span>' : '<span style="color:#8E8E93;">已出库</span>';
+
+        const html = `
+            <div class="modal-row">
+                <span class="modal-label">单号</span>
+                <span class="modal-value" style="font-family:monospace; color:#007AFF;">${r.barcode}</span>
+            </div>
+            <div class="modal-row">
+                <span class="modal-label">状态</span>
+                <span class="modal-value">${statusText}</span>
+            </div>
+            <div class="modal-row">
+                <span class="modal-label">运费</span>
+                <span class="modal-value">${payText}</span>
+            </div>
+            <div class="modal-row">
+                <span class="modal-label">入库时间</span>
+                <span class="modal-value">${r.inTime}</span>
+            </div>
+            <div class="modal-row">
+                <span class="modal-label">出库时间</span>
+                <span class="modal-value">${r.outTime}</span>
+            </div>
         `;
+        document.getElementById('modalContent').innerHTML = html;
         document.getElementById('detailModal').style.display = 'flex';
     }
 
-    function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
+    // 新增：关闭详情
+    function closeModal() {
+        document.getElementById('detailModal').style.display = 'none';
+    }
+
     function exportData() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
         const download = document.createElement('a');
@@ -281,13 +322,14 @@
         download.setAttribute("download", `快递备份_${new Date().toLocaleDateString()}.json`);
         download.click();
     }
+
     function handleClearData() {
-        if (confirm("确定清理已出库的历史记录？")) {
+        if (confirm("⚠️ 确定清理已出库的历史记录吗？清理后仅保留当前在库的数据。建议先导出备份。")) {
             records = records.filter(r => r.status === '在库');
             saveAndRefresh();
+            alert("🧹 清理完成！");
         }
     }
 </script>
 </body>
 </html>
-
