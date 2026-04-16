@@ -2,54 +2,144 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>佳美超市快递助手</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>快递助手</title>
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 15px; background: #f4f4f9; color: #333; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        h2, h3 { margin-top: 0; color: #444; text-align: center; }
-        
-        /* 按钮与输入框样式 */
-        input[type="text"], input[type="password"] { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.2s; font-weight: bold; }
-        .btn-in { background: #4CAF50; color: white; }
-        .btn-out { background: #2196F3; color: white; }
-        .btn-clear { background: #ff4d4d; color: white; margin-top: 10px; }
-        .btn-secondary { background: #777; color: white; }
-        .btn-login { background: #333; color: white; }
+        /* 苹果原生字体与全局背景 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; 
+            margin: 0; 
+            padding: 16px; 
+            background: #F2F2F7; /* iOS 经典系统灰背景 */
+            color: #1C1C1E; 
+            -webkit-font-smoothing: antialiased;
+        }
 
-        /* 视频与表格样式 */
-        #video { width: 100%; height: 250px; background: black; border-radius: 10px; display: none; object-fit: cover; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #eee; }
-        .select-range { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px;}
+        /* 大圆角卡片 */
+        .card { 
+            background: #FFFFFF; 
+            padding: 16px; 
+            border-radius: 16px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03); 
+            margin-bottom: 16px; 
+        }
+
+        h2, h3 { 
+            margin-top: 0; 
+            font-weight: 600; 
+            color: #000000;
+        }
+        h2 { font-size: 22px; text-align: center; margin-bottom: 20px;}
+        h3 { font-size: 18px; margin-bottom: 16px; }
         
+        /* 无边框、浅灰色背景的输入框 (iOS 风格) */
+        input[type="text"], input[type="password"], select { 
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 12px; 
+            background-color: #F2F2F7;
+            border: none; 
+            border-radius: 12px; 
+            font-size: 16px; 
+            box-sizing: border-box;
+            outline: none;
+            color: #1C1C1E;
+        }
+        input:focus, select:focus {
+            background-color: #E5E5EA;
+        }
+
+        /* 饱满的触屏按钮 */
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            margin: 6px 0; 
+            border: none; 
+            border-radius: 14px; 
+            cursor: pointer; 
+            font-size: 17px; 
+            font-weight: 600; 
+            transition: opacity 0.2s; 
+        }
+        button:active { opacity: 0.7; }
+
+        /* iOS 标准色 */
+        .btn-in { background: #34C759; color: white; } /* iOS Green */
+        .btn-out { background: #007AFF; color: white; } /* iOS Blue */
+        .btn-clear { background: #FF3B30; color: white; margin-top: 10px; } /* iOS Red */
+        .btn-secondary { background: #E5E5EA; color: #007AFF; } /* 灰底蓝字 */
+        .btn-login { background: #007AFF; color: white; }
+
+        /* 视频圆角 */
+        #video { width: 100%; height: 250px; background: #000; border-radius: 12px; display: none; object-fit: cover; margin-bottom: 16px; }
+        
+        /* 极简列表表格 */
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 14px; }
+        th, td { padding: 12px 8px; text-align: left; }
+        th { color: #8E8E93; font-weight: 500; font-size: 13px; border-bottom: 1px solid #E5E5EA; }
+        td { border-bottom: 0.5px solid #E5E5EA; }
+        tr:last-child td { border-bottom: none; } /* 最后一行去下划线 */
+        
+        /* 统计看板 */
+        .stat-container { display: flex; justify-content: space-between; text-align: center; margin-bottom: 16px; gap: 10px;}
+        .stat-box { padding: 12px; border-radius: 12px; flex: 1; box-sizing: border-box; }
+        .stat-box-green { background: #E8F5E9; }
+        .stat-box-blue { background: #E3F2FD; }
+        .stat-title { font-size: 12px; color: #8E8E93; margin-bottom: 6px; }
+        .stat-number { font-size: 20px; font-weight: 700; }
+
         /* 面板显示控制 */
         #appPanel { display: none; }
+
+        /* 提示语样式 */
+        .hint-text { font-size: 13px; color: #8E8E93; margin-bottom: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="loginPanel" class="card" style="margin-top: 30vh;">
-    <h2>🔒 私人空间</h2>
-    <p style="text-align: center; font-size: 14px; color: #666;">请输入访问密码</p>
-    <input type="password" id="appPassword" placeholder="输入密码">
-    <button class="btn-login" onclick="verifyPassword()">进 入</button>
+<div id="loginPanel" class="card" style="margin-top: 25vh;">
+    <h2>快递助手</h2>
+    <p class="hint-text">请输入您的访问凭证</p>
+    <input type="password" id="appPassword" placeholder="密码">
+    <button class="btn-login" onclick="verifyPassword()">解锁</button>
 </div>
 
 <div id="appPanel">
     <div class="card">
-        <h2>📦 快递扫码助手</h2>
+        <h2>📦 快递扫码</h2>
         <video id="video"></video>
         <button class="btn-in" onclick="startScan('IN')">📥 入库扫码</button>
         <button class="btn-out" onclick="startScan('OUT')">📤 出库扫码</button>
     </div>
 
     <div class="card">
-        <h3>🔍 记录查询</h3>
-        <input type="text" id="search" placeholder="输入单号查询..." oninput="renderTable()">
+        <h3>📊 统计看板</h3>
+        <div class="stat-container">
+            <div class="stat-box stat-box-green">
+                <div class="stat-title">今日 入 / 出</div>
+                <div class="stat-number" style="color: #34C759;">
+                    <span id="statTodayIn">0</span> / <span id="statTodayOut">0</span>
+                </div>
+            </div>
+            <div class="stat-box stat-box-blue">
+                <div class="stat-title">总计 入 / 出</div>
+                <div class="stat-number" style="color: #007AFF;">
+                    <span id="statTotalIn">0</span> / <span id="statTotalOut">0</span>
+                </div>
+            </div>
+        </div>
+        <select id="dataFilter" onchange="renderTable()">
+            <option value="ALL">显示所有记录</option>
+            <option value="TODAY_IN">仅显示：今日入库</option>
+            <option value="TODAY_OUT">仅显示：今日出库</option>
+            <option value="IN_STOCK">仅显示：当前在库未取</option>
+        </select>
+    </div>
+
+    <div class="card">
+        <h3>🔍 记录明细</h3>
+        <input type="text" id="search" placeholder="输入单号模糊查询..." oninput="renderTable()">
         <div style="overflow-x: auto;">
             <table id="recordTable">
                 <thead>
@@ -66,15 +156,15 @@
     </div>
 
     <div class="card">
-        <h3>🧹 数据管理</h3>
-        <p style="font-size: 12px; color: #666;">清理指定时间之前的入库记录：</p>
-        <select id="clearRange" class="select-range">
+        <h3>设置与管理</h3>
+        <p class="hint-text" style="text-align: left;">清理无用的历史缓存</p>
+        <select id="clearRange">
             <option value="7">清理 1 周前的数据</option>
             <option value="30">清理 1 个月前的数据</option>
             <option value="365">清理 1 年前的数据</option>
         </select>
         <button class="btn-clear" onclick="handleClearData()">执行清理</button>
-        <button class="btn-secondary" onclick="exportData()">💾 导出备份 (JSON)</button>
+        <button class="btn-secondary" onclick="exportData()">导出备份 (JSON)</button>
     </div>
 </div>
 
@@ -82,7 +172,6 @@
     // --- 密码验证逻辑 ---
     const SECRET_PASSWORD = "524498195";
 
-    // 检查是否在当前会话中已经登录过
     if (sessionStorage.getItem('isLoggedIn') === 'true') {
         showApp();
     }
@@ -90,10 +179,10 @@
     function verifyPassword() {
         const input = document.getElementById('appPassword').value;
         if (input === SECRET_PASSWORD) {
-            sessionStorage.setItem('isLoggedIn', 'true'); // 记录登录状态（浏览器标签页关闭后失效）
+            sessionStorage.setItem('isLoggedIn', 'true');
             showApp();
         } else {
-            alert('❌ 密码错误，请重试！');
+            alert('密码错误，请重试');
             document.getElementById('appPassword').value = '';
         }
     }
@@ -101,9 +190,9 @@
     function showApp() {
         document.getElementById('loginPanel').style.display = 'none';
         document.getElementById('appPanel').style.display = 'block';
-        renderTable(); // 显示应用后渲染表格
+        updateStats(); 
+        renderTable(); 
     }
-
 
     // --- 核心业务逻辑 ---
     let currentMode = '';
@@ -127,12 +216,15 @@
     function processBarcode(code) {
         const index = records.findIndex(r => r.barcode === code);
         const now = new Date();
-        const timeStr = now.toLocaleString();
+        
+        // 格式化时间为更简洁的格式 (去掉秒)
+        const timeOptions = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        const timeStr = now.toLocaleDateString('zh-CN', timeOptions).replace(/\//g, '-');
         const timestamp = now.getTime();
 
         if (currentMode === 'IN') {
             if (index > -1) {
-                alert("⚠️ 报错：该单号已在库中！");
+                alert("包裹已在库中");
             } else {
                 records.unshift({ 
                     barcode: code, 
@@ -141,15 +233,14 @@
                     inTimestamp: timestamp,
                     outTime: '-' 
                 });
-                alert("✅ 入库成功：" + code);
             }
         } else {
             if (index > -1 && records[index].status === '在库') {
                 records[index].status = '已出库';
                 records[index].outTime = timeStr;
-                alert("✅ 出库成功：" + code);
+                records[index].outTimestamp = timestamp; 
             } else {
-                alert("❌ 报错：未找到入库记录或已出库！");
+                alert("未找到在库记录");
             }
         }
         saveAndRefresh();
@@ -162,44 +253,65 @@
         const threshold = now - msToClear;
         const countBefore = records.length;
         
-        if (confirm(`⚠️ 确定要清理 ${days} 天之前的记录吗？此操作不可撤销！建议先导出备份。`)) {
+        if (confirm(`确定要清理 ${days} 天之前的数据吗？`)) {
             records = records.filter(r => {
                 if (!r.inTimestamp) return true; 
                 return r.inTimestamp > threshold;
             });
-            const deletedCount = countBefore - records.length;
-            alert(`🧹 清理完成！共删除了 ${deletedCount} 条历史记录。`);
+            alert(`已清理 ${countBefore - records.length} 条记录`);
             saveAndRefresh();
         }
     }
 
     function saveAndRefresh() {
         localStorage.setItem('express_db', JSON.stringify(records));
-        renderTable();
+        updateStats(); 
+        renderTable(); 
+    }
+
+    function updateStats() {
+        const todayStart = new Date().setHours(0, 0, 0, 0); 
+        let todayIn = 0, todayOut = 0, totalOut = 0;
+
+        records.forEach(r => {
+            if (r.status === '已出库') totalOut++;
+            if (r.inTimestamp && r.inTimestamp >= todayStart) todayIn++;
+            if (r.outTimestamp && r.outTimestamp >= todayStart) todayOut++;
+        });
+
+        document.getElementById('statTodayIn').innerText = todayIn;
+        document.getElementById('statTodayOut').innerText = todayOut;
+        document.getElementById('statTotalIn').innerText = records.length;
+        document.getElementById('statTotalOut').innerText = totalOut;
     }
 
     function renderTable() {
         const searchVal = document.getElementById('search').value;
+        const filterVal = document.getElementById('dataFilter').value;
+        const todayStart = new Date().setHours(0, 0, 0, 0);
         const tbody = document.querySelector('#recordTable tbody');
         tbody.innerHTML = '';
 
-        records.filter(r => r.barcode.includes(searchVal)).forEach(r => {
+        let displayRecords = records.filter(r => r.barcode.includes(searchVal));
+
+        if (filterVal === 'TODAY_IN') {
+            displayRecords = displayRecords.filter(r => r.inTimestamp && r.inTimestamp >= todayStart);
+        } else if (filterVal === 'TODAY_OUT') {
+            displayRecords = displayRecords.filter(r => r.outTimestamp && r.outTimestamp >= todayStart);
+        } else if (filterVal === 'IN_STOCK') {
+            displayRecords = displayRecords.filter(r => r.status === '在库');
+        }
+
+        displayRecords.forEach(r => {
+            const statusColor = r.status === '在库' ? '#34C759' : '#8E8E93';
             const row = `<tr>
-                <td>${r.barcode}</td>
-                <td style="color:${r.status==='在库'?'#4CAF50':'#ff4d4d'}; font-weight:bold;">${r.status}</td>
-                <td>${r.inTime}</td>
-                <td>${r.outTime}</td>
+                <td style="font-family: monospace; font-size: 13px;">${r.barcode}</td>
+                <td style="color:${statusColor}; font-weight:600;">${r.status}</td>
+                <td style="color: #666; font-size: 12px;">${r.inTime}</td>
+                <td style="color: #666; font-size: 12px;">${r.outTime}</td>
             </tr>`;
             tbody.innerHTML += row;
         });
-    }
-
-    function exportData() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `快递数据备份_${new Date().toLocaleDateString()}.json`);
-        downloadAnchorNode.click();
     }
 </script>
 </body>
